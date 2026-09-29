@@ -1,0 +1,22 @@
+# Environment variables
+.env
+
+# Python cache and build files
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Streamlit config/secrets
+.streamlit/secrets.toml
+
+# Downloaded dataset archives and extracted raw files
+data/*.zip
+data/ml-latest-small/
+data/ml-1m/
+data/*.csv
+
+# Virtual environments
+venv/
+env/
+ENV/
