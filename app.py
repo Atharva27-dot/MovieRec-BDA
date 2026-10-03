@@ -4,7 +4,6 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
-import plotly.graph_objects as go
 
 # Add root project directory to sys.path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -14,7 +13,6 @@ from src.config import (
     COLL_MOVIES,
     COLL_RATINGS,
     COLL_STATS,
-    COLL_RECOMMENDATIONS,
 )
 from src.database import ping_database, get_collection
 from src.data_loader import load_clean_data_from_disk
@@ -25,63 +23,34 @@ from src.analytics import (
     get_most_rated_movies,
     get_highest_rated_movies,
     get_genre_distribution,
-    get_average_rating_by_genre,
-    get_user_rating_behavior,
 )
 
-# Set Streamlit page config
+# Page configuration
 st.set_page_config(
-    page_title="MovieRec BDA — Big Data Movie Recommendation System",
+    page_title="MovieRec-BDA",
     page_icon="🎬",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS styling
+# Custom CSS styling for clean student project aesthetic
 st.markdown("""
     <style>
-    .main-title {
-        font-size: 2.3rem;
-        font-weight: 700;
-        color: #1E88E5;
-        margin-bottom: 0px;
-    }
-    .sub-title {
-        font-size: 1.1rem;
-        color: #555555;
-        margin-bottom: 20px;
-    }
     .kpi-card {
-        background-color: #F8F9FA;
-        border-left: 5px solid #1E88E5;
-        padding: 15px;
-        border-radius: 8px;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 16px;
+        text-align: center;
     }
     .kpi-number {
         font-size: 1.8rem;
         font-weight: bold;
-        color: #0D47A1;
+        color: #212529;
     }
     .kpi-label {
         font-size: 0.9rem;
-        color: #666666;
-        text-transform: uppercase;
-    }
-    .rec-card {
-        background-color: #FFFFFF;
-        border: 1px solid #E0E0E0;
-        border-radius: 8px;
-        padding: 15px;
-        margin-bottom: 12px;
-    }
-    .bda-badge {
-        background-color: #E3F2FD;
-        color: #0D47A1;
-        padding: 4px 8px;
-        border-radius: 4px;
-        font-weight: 600;
-        font-size: 0.85rem;
+        color: #6c757d;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -92,8 +61,8 @@ st.markdown("""
 @st.cache_resource
 def get_recommender_instance():
     """
-    Fits and caches the MovieRecommender engine.
-    Tries MongoDB Atlas first, falls back to local preprocessed JSON dataset.
+    Loads and caches the MovieRecommender engine.
+    Tries MongoDB Atlas first, falls back to local dataset.
     """
     recommender = MovieRecommender()
     is_valid, _ = validate_config()
@@ -106,18 +75,18 @@ def get_recommender_instance():
         except Exception:
             pass
 
-    # Fallback to local JSON files
+    # Fallback to local processed JSON files
     try:
         movies, ratings, stats = load_clean_data_from_disk()
         recommender.fit_from_data(movies, stats)
-        return recommender, "Local Processed Data (Offline Mode)"
+        return recommender, "Local Dataset (Offline Mode)"
     except Exception as e:
         return recommender, f"Error initializing recommender: {e}"
 
 @st.cache_data(ttl=600)
 def load_all_movies_df():
     """
-    Loads movies DataFrame for dropdowns and tables.
+    Loads movies DataFrame for selection dropdowns and tables.
     """
     is_valid, _ = validate_config()
     if is_valid:
@@ -138,34 +107,31 @@ def load_all_movies_df():
 # ---------------------------------------------------------
 # Sidebar Navigation
 # ---------------------------------------------------------
-st.sidebar.image("https://img.icons8.com/color/96/movie-beginning.png", width=70)
-st.sidebar.title("MovieRec BDA")
-st.sidebar.markdown("**Big Data Analytics Lab Mini Project**")
+st.sidebar.title("MovieRec-BDA")
 st.sidebar.markdown("---")
 
 navigation = st.sidebar.radio(
-    "Navigate System Pages:",
+    "Navigation",
     [
         "1. Home",
         "2. Movie Explorer",
         "3. Recommendations",
         "4. Analytics Dashboard",
-        "5. MongoDB Operations",
-        "6. About Project"
+        "5. MongoDB Operations"
     ]
 )
 
 st.sidebar.markdown("---")
-# Connection status indicator in sidebar
+# Database connection status indicator in sidebar
 is_valid, cfg_msg = validate_config()
 if is_valid:
     conn_ok, conn_msg, db_info = ping_database()
     if conn_ok:
-        st.sidebar.success(f"🟢 Connected to MongoDB Atlas\n`DB: {db_info.get('database_name')}`")
+        st.sidebar.success(f"Connected to MongoDB Atlas\n(DB: {db_info.get('database_name')})")
     else:
-        st.sidebar.warning(f"🟡 MongoDB Atlas Offline\nUsing local dataset fallback.")
+        st.sidebar.warning("MongoDB Atlas Offline (Using Local Data)")
 else:
-    st.sidebar.info("ℹ️ Local Mode (Set MONGODB_URI in `.env` for Atlas cloud db)")
+    st.sidebar.info("Local Mode (Set MONGODB_URI in .env for Cloud DB)")
 
 # Load Recommender and Movies Data
 recommender_engine, data_source_label = get_recommender_instance()
@@ -176,11 +142,14 @@ movies_df = load_all_movies_df()
 # PAGE 1: HOME
 # =========================================================
 if navigation == "1. Home":
-    st.markdown('<p class="main-title">MovieRec BDA — Big Data Movie Recommendation System</p>', unsafe_allow_html=True)
-    st.markdown('<p class="sub-title">A Big Data movie recommendation and analytics platform powered by MongoDB.</p>', unsafe_allow_html=True)
+    st.header("Home")
+    
+    st.write(
+        "MovieRec-BDA is a movie recommendation and analytics project built using MongoDB, Python and Streamlit. "
+        "It uses movie ratings and genre information to explore movies and generate recommendations."
+    )
 
-    # Status Banner
-    st.info(f"📍 **Data Source:** Currently active with **{data_source_label}**.")
+    st.info(f"**Data Source:** Currently active using **{data_source_label}**.")
 
     # KPI Metrics Section
     kpis = get_kpi_summary()
@@ -202,51 +171,29 @@ if navigation == "1. Home":
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # Key Features Grid
-    st.subheader("💡 System Architecture & Core Capabilities")
-    f_col1, f_col2 = st.columns(2)
+    st.subheader("What this project does")
+    st.markdown("""
+    - **Explore movie information:** Search movies, filter by genre, and view rating counts.
+    - **View ratings and statistics:** Analyze overall rating distributions and top-rated movies.
+    - **Find movies similar to a selected movie:** Generate recommendations based on content similarity and genre matching.
+    - **Analyze the movie-rating dataset:** Perform database aggregations directly on MongoDB collections.
+    - **View MongoDB operations used by the project:** Inspect collections, indexes, and aggregation queries.
+    """)
 
-    with f_col1:
-        st.markdown("""
-        #### 🍃 MongoDB NoSQL Engine
-        - **Document-Oriented Storage:** Stores unstructured & semi-structured movie metadata and ratings as JSON/BSON documents.
-        - **Aggregation Pipelines:** Multi-stage analytics (`$group`, `$sort`, `$lookup`, `$unwind`, `$match`) performed directly on database server nodes.
-        - **Custom Indexing:** Compound & single-field B-tree indexes for high-throughput search and fast joins.
-        """)
-
-    with f_col2:
-        st.markdown("""
-        #### 🤖 Content-Based & Hybrid Recommender
-        - **Multi-Hot Genre Encoding:** Converts categorical movie genres into sparse feature vectors.
-        - **Cosine Similarity Matrix:** Calculates mathematical distance between movie vectors to find relevant titles.
-        - **Popularity & Rating Weighting:** Adjusts similarity scores using Bayesian average ratings and rating volume.
-        """)
-
-    st.markdown("---")
-    st.markdown("### 📊 Workflow Pipeline")
-    st.code("""
-[ GroupLens MovieLens Dataset ] 
-               │
-               ▼
-[ Download & Cleaning Pipeline ] ──► (Missing checks, Rating bounds 0.5-5.0, Deduplication)
-               │
-               ▼
-[ MongoDB Atlas Document Storage ] ──► (movies, ratings, movie_stats, recommendations)
-               │
-               ▼
-[ Aggregation & Hybrid Recommender ] ──► (Cosine Similarity + Mongo Aggregations)
-               │
-               ▼
-[ Streamlit Web Application ] ──► (Interactive Analytics & Movie Explorer)
-    """, language="text")
+    st.subheader("System Overview")
+    st.markdown("""
+    1. **Data Ingestion:** MovieLens dataset is preprocessed, validated, and stored in MongoDB Atlas collections (`movies`, `ratings`, `movie_stats`).
+    2. **MongoDB Aggregation:** Rating statistics and top movie charts are calculated using native MongoDB aggregation pipelines (`$group`, `$sort`, `$lookup`, `$unwind`).
+    3. **Content Recommendation:** Genres are multi-hot encoded into feature vectors, and cosine similarity is used to rank similar movies.
+    """)
 
 
 # =========================================================
 # PAGE 2: MOVIE EXPLORER
 # =========================================================
 elif navigation == "2. Movie Explorer":
-    st.subheader("🔍 Movie Explorer")
-    st.markdown("Search movies, filter by genre, sort by popularity or rating, and view detailed statistics.")
+    st.header("Movie Explorer")
+    st.write("Search for a movie, filter by genre, and view details.")
 
     if movies_df.empty:
         st.warning("No movie data loaded. Please run dataset preparation scripts.")
@@ -261,11 +208,11 @@ elif navigation == "2. Movie Explorer":
         # Filter controls
         c1, c2, c3 = st.columns([2, 1, 1])
         with c1:
-            search_query = st.text_input("🔎 Search movie title:", value="")
+            search_query = st.text_input("Search for a movie:", value="")
         with c2:
-            selected_genre = st.selectbox("🎭 Filter by Genre:", options=sorted_genres)
+            selected_genre = st.selectbox("Filter by genre:", options=sorted_genres)
         with c3:
-            sort_by = st.selectbox("⇅ Sort Movies By:", options=["Title (A-Z)", "Movie ID"])
+            sort_by = st.selectbox("Sort by:", options=["Title (A-Z)", "Movie ID"])
 
         # Filter logic
         filtered_df = movies_df.copy()
@@ -282,30 +229,28 @@ elif navigation == "2. Movie Explorer":
         else:
             filtered_df = filtered_df.sort_values(by="movieId")
 
-        st.markdown(f"Displaying **{len(filtered_df):,}** matching movies:")
+        st.write(f"Showing **{len(filtered_df):,}** movies:")
 
-        # Display table with pagination/dataframe
         display_df = filtered_df.copy()
         display_df["genres_str"] = display_df["genres"].apply(lambda g: ", ".join(g) if isinstance(g, list) else "")
         st.dataframe(
             display_df[["movieId", "title", "genres_str"]].rename(columns={
                 "movieId": "Movie ID",
-                "title": "Movie Title",
+                "title": "Title",
                 "genres_str": "Genres"
             }),
             use_container_width=True,
-            height=400
+            height=350
         )
 
         st.markdown("---")
-        st.subheader("📹 Detailed Movie View")
-        selected_movie_title = st.selectbox("Select a movie to inspect details:", options=filtered_df["title"].tolist()[:500])
+        st.subheader("Movie details")
+        selected_movie_title = st.selectbox("Select a movie to view details:", options=filtered_df["title"].tolist()[:500])
 
         if selected_movie_title:
             m_row = filtered_df[filtered_df["title"] == selected_movie_title].iloc[0]
             m_id = int(m_row["movieId"])
 
-            # Attempt to fetch rating statistics
             avg_r = 0.0
             cnt_r = 0
             is_valid_db, _ = validate_config()
@@ -323,19 +268,19 @@ elif navigation == "2. Movie Explorer":
             with d_col1:
                 st.metric("Movie ID", m_id)
             with d_col2:
-                st.metric("Average Rating", f"{avg_r:.2f} ⭐" if avg_r > 0 else "N/A")
+                st.metric("Rating", f"{avg_r:.2f} / 5.0" if avg_r > 0 else "N/A")
             with d_col3:
-                st.metric("Total Ratings", f"{cnt_r:,}" if cnt_r > 0 else "N/A")
+                st.metric("Number of ratings", f"{cnt_r:,}" if cnt_r > 0 else "N/A")
 
-            st.markdown(f"**Genres:** {', '.join(m_row['genres'] if isinstance(m_row['genres'], list) else [])}")
+            st.write(f"**Genres:** {', '.join(m_row['genres'] if isinstance(m_row['genres'], list) else [])}")
 
 
 # =========================================================
 # PAGE 3: RECOMMENDATIONS
 # =========================================================
 elif navigation == "3. Recommendations":
-    st.subheader("🍿 Movie Recommendation Engine")
-    st.markdown("Select a movie to generate real-time content-based recommendations using genre similarity vectorization.")
+    st.header("Movie Recommendations")
+    st.write("Select a movie to get recommendations based on genre similarity and rating statistics.")
 
     if movies_df.empty or not recommender_engine.is_fitted:
         st.warning("Recommender engine is not ready. Please verify dataset files.")
@@ -344,28 +289,26 @@ elif navigation == "3. Recommendations":
 
         with rc1:
             target_movie_title = st.selectbox(
-                "🎬 Choose Target Movie:",
+                "Select a movie:",
                 options=recommender_engine.combined_df["title"].tolist(),
                 index=0
             )
 
         with rc2:
-            num_recs = st.selectbox("🔢 Top N Recommendations:", options=[5, 10, 15, 20], index=1)
+            num_recs = st.selectbox("Number of recommendations:", options=[5, 10, 15, 20], index=1)
 
         with rc3:
-            algo_type = st.radio("⚙️ Algorithm:", options=["Hybrid Score", "Pure Similarity"])
+            algo_type = st.radio("Scoring method:", options=["Hybrid (Genre + Rating)", "Genre Similarity Only"])
 
-        if st.button("🚀 Get Recommendations", type="primary"):
+        if st.button("Get Recommendations"):
             target_row = recommender_engine.combined_df[recommender_engine.combined_df["title"] == target_movie_title].iloc[0]
             target_id = int(target_row["movieId"])
 
-            use_hybrid = (algo_type == "Hybrid Score")
+            use_hybrid = (algo_type == "Hybrid (Genre + Rating)")
             recs = recommender_engine.get_recommendations(movie_id=target_id, top_n=num_recs, use_hybrid=use_hybrid)
 
-            st.markdown(f"### Recommendations for *'{target_movie_title}'*")
-            st.caption(f"Target Genres: **{', '.join(target_row['genres'] if isinstance(target_row['genres'], list) else [])}**")
-
-            st.info("💡 **Recommendation Logic:** Recommendations are generated using content-based multi-hot genre similarity (cosine distance) and optionally adjusted using rating quality and popularity weighting.")
+            st.subheader(f"Recommended movies for '{target_movie_title}'")
+            st.write(f"Genres of selected movie: **{', '.join(target_row['genres'] if isinstance(target_row['genres'], list) else [])}**")
 
             if not recs:
                 st.warning("No recommendations found matching criteria.")
@@ -374,12 +317,12 @@ elif navigation == "3. Recommendations":
                     with st.container():
                         r_col1, r_col2 = st.columns([4, 1])
                         with r_col1:
-                            st.markdown(f"#### #{rec['rank']} {rec['title']} (`ID: {rec['movieId']}`)")
-                            st.markdown(f"**Genres:** {', '.join(rec['genres'])}")
-                            st.markdown(f"**Why Recommended:** {rec['explanation']}")
+                            st.markdown(f"#### #{rec['rank']} {rec['title']} (ID: {rec['movieId']})")
+                            st.write(f"**Genres:** {', '.join(rec['genres'])}")
+                            st.write(f"**Why these movies were suggested:** {rec['explanation']}")
                         with r_col2:
-                            st.metric("Similarity Score", f"{rec['similarity_score']:.2f}")
-                            st.caption(f"⭐ {rec['average_rating']} ({rec['rating_count']:,} votes)")
+                            st.metric("Similarity", f"{rec['similarity_score']:.2f}")
+                            st.caption(f"Rating: {rec['average_rating']} ({rec['rating_count']:,} votes)")
                         st.markdown("---")
 
 
@@ -387,13 +330,14 @@ elif navigation == "3. Recommendations":
 # PAGE 4: ANALYTICS DASHBOARD
 # =========================================================
 elif navigation == "4. Analytics Dashboard":
-    st.subheader("📊 Big Data Analytics Dashboard")
-    st.markdown("Interactive visual analytics powered by MongoDB aggregation pipelines and Plotly.")
+    st.header("Analytics Dashboard")
+    st.write("Visualizations generated from MongoDB aggregations on the MovieLens dataset.")
 
-    tab1, tab2, tab3 = st.tabs(["⭐ Ratings & Distribution", "🔥 Top Movies", "🎭 Genre Insights"])
+    tab1, tab2, tab3 = st.tabs(["Dataset Overview & Rating Statistics", "Popular Movies", "Genre Distribution"])
 
     with tab1:
-        st.markdown("#### Rating Distribution across 100,000+ User Votes")
+        st.subheader("Rating Statistics")
+        st.write("Distribution of user rating scores (0.5 to 5.0 stars):")
         rating_dist = get_rating_distribution()
 
         if rating_dist:
@@ -402,20 +346,20 @@ elif navigation == "4. Analytics Dashboard":
                 dist_df,
                 x="rating",
                 y="count",
-                labels={"rating": "Rating Value (Stars)", "count": "Number of Ratings"},
-                title="Rating Value Frequency Distribution",
-                color="count",
-                color_continuous_scale="Viridis"
+                labels={"rating": "Rating Value", "count": "Number of Ratings"},
+                title="Rating Value Distribution",
+                color_discrete_sequence=["#1f77b4"]
             )
             st.plotly_chart(fig_dist, use_container_width=True)
         else:
-            st.info("Rating distribution aggregation pipeline returned no data or MongoDB is offline.")
+            st.info("Rating distribution data is unavailable or MongoDB is offline.")
 
     with tab2:
+        st.subheader("Popular Movies")
         col_m1, col_m2 = st.columns(2)
 
         with col_m1:
-            st.markdown("#### 🏆 Top 10 Most Rated Movies")
+            st.markdown("##### Most Rated Movies")
             most_rated = get_most_rated_movies(limit=10)
             if most_rated:
                 mr_df = pd.DataFrame(most_rated)
@@ -424,17 +368,15 @@ elif navigation == "4. Analytics Dashboard":
                     x="rating_count",
                     y="title",
                     orientation="h",
-                    title="Movies with Most Ratings Volume",
                     labels={"rating_count": "Total Ratings", "title": "Movie Title"},
-                    color="rating_count",
-                    color_continuous_scale="Blues"
+                    color_discrete_sequence=["#2ca02c"]
                 )
                 fig_mr.update_layout(yaxis={'categoryorder': 'total ascending'})
                 st.plotly_chart(fig_mr, use_container_width=True)
 
         with col_m2:
-            st.markdown("#### 🌟 Top 10 Highest Rated Movies")
-            min_thresh = st.slider("Minimum Rating Count Threshold:", min_value=10, max_value=200, value=50, step=10)
+            st.markdown("##### Highest Rated Movies")
+            min_thresh = st.slider("Minimum number of ratings:", min_value=10, max_value=200, value=50, step=10)
             highest_rated = get_highest_rated_movies(min_ratings=min_thresh, limit=10)
             if highest_rated:
                 hr_df = pd.DataFrame(highest_rated)
@@ -443,16 +385,15 @@ elif navigation == "4. Analytics Dashboard":
                     x="average_rating",
                     y="title",
                     orientation="h",
-                    title=f"Highest Average Rating (Min {min_thresh} votes)",
-                    labels={"average_rating": "Average Rating (Out of 5)", "title": "Movie Title"},
-                    color="average_rating",
-                    color_continuous_scale="YlOrRd"
+                    labels={"average_rating": "Average Rating", "title": "Movie Title"},
+                    color_discrete_sequence=["#ff7f0e"]
                 )
                 fig_hr.update_layout(yaxis={'categoryorder': 'total ascending'})
                 st.plotly_chart(fig_hr, use_container_width=True)
 
     with tab3:
-        st.markdown("#### 🎭 Genre Popularity & Movie Distribution")
+        st.subheader("Genre Distribution")
+        st.write("Number of movies per genre category:")
         genre_dist = get_genre_distribution()
         if genre_dist:
             g_df = pd.DataFrame(genre_dist)
@@ -460,8 +401,7 @@ elif navigation == "4. Analytics Dashboard":
                 g_df,
                 names="genre",
                 values="movie_count",
-                title="Movie Distribution by Genre",
-                hole=0.4
+                title="Movie Breakdown by Genre"
             )
             st.plotly_chart(fig_g, use_container_width=True)
 
@@ -470,18 +410,18 @@ elif navigation == "4. Analytics Dashboard":
 # PAGE 5: MONGODB OPERATIONS
 # =========================================================
 elif navigation == "5. MongoDB Operations":
-    st.subheader("🍃 MongoDB Operations & Query Demonstrations")
-    st.markdown("Demonstrate live NoSQL queries, document structure, indexes, and aggregation pipelines.")
+    st.header("MongoDB Operations")
+    st.write("Demonstration of NoSQL queries, collections, indexes, and aggregation pipelines.")
 
     is_valid_db, msg = validate_config()
 
     if not is_valid_db:
-        st.warning("MongoDB URI is not configured in `.env`. Demonstration mode displaying query examples:")
+        st.warning("MongoDB URI is not set in `.env`. Demonstration query examples:")
 
-    st.markdown("### 🛠️ Interactive MongoDB Query Runner")
+    st.subheader("Query Examples")
 
     query_option = st.selectbox(
-        "Choose MongoDB Query Operation to Demonstrate:",
+        "Select a MongoDB query operation to inspect:",
         [
             "1. db.movies.find() - Sample Movies Documents",
             "2. db.movies.find({genres: 'Comedy'}) - Filter by Genre",
@@ -501,7 +441,7 @@ db.movies.find({}, {projection: {_id: 0}}).limit(5);
                 res = list(get_collection(COLL_MOVIES).find({}, {"_id": 0}).limit(5))
                 st.json(res)
             except Exception as e:
-                st.error(f"Execution error: {e}")
+                st.error(f"Query error: {e}")
 
     elif query_option.startswith("2."):
         st.code("""
@@ -513,7 +453,7 @@ db.movies.find({ genres: "Comedy" }, {projection: {_id: 0}}).limit(5);
                 res = list(get_collection(COLL_MOVIES).find({"genres": "Comedy"}, {"_id": 0}).limit(5))
                 st.json(res)
             except Exception as e:
-                st.error(f"Execution error: {e}")
+                st.error(f"Query error: {e}")
 
     elif query_option.startswith("3."):
         st.code("""
@@ -525,7 +465,7 @@ db.ratings.find({ rating: { $gte: 4.5 } }, {projection: {_id: 0}}).limit(5);
                 res = list(get_collection(COLL_RATINGS).find({"rating": {"$gte": 4.5}}, {"_id": 0}).limit(5))
                 st.json(res)
             except Exception as e:
-                st.error(f"Execution error: {e}")
+                st.error(f"Query error: {e}")
 
     elif query_option.startswith("4."):
         st.code("""
@@ -546,7 +486,7 @@ db.ratings.aggregate([
                 res = list(get_collection(COLL_RATINGS).aggregate(pipe))
                 st.json(res)
             except Exception as e:
-                st.error(f"Execution error: {e}")
+                st.error(f"Query error: {e}")
 
     elif query_option.startswith("5."):
         st.code("""
@@ -567,48 +507,13 @@ db.movies.aggregate([
                 res = list(get_collection(COLL_MOVIES).aggregate(pipe))
                 st.json(res)
             except Exception as e:
-                st.error(f"Execution error: {e}")
+                st.error(f"Query error: {e}")
 
     st.markdown("---")
-    st.markdown("### ❓ Why Choose MongoDB for Big Data Recommendation Systems?")
+    st.subheader("MongoDB Database Statistics & Features")
     st.markdown("""
-    - **Flexible Document Schema:** Unlike relational SQL databases with strict table schemas, MongoDB handles dynamic arrays (e.g. `genres: ["Action", "Sci-Fi"]`) naturally without requiring separate junction tables.
-    - **High-Performance Aggregation Framework:** Provides native pipeline stages (`$match`, `$group`, `$sort`, `$unwind`, `$lookup`) that process analytics directly in memory at database nodes.
-    - **Horizontal Scalability & Sharding:** Automatically distributes collections across cluster nodes as rating dataset size grows from thousands to millions.
-    - **Secondary B-Tree Indexing:** Accelerates multi-field queries, title regex searches, and fast join targets.
+    - **Collections:** `movies`, `ratings`, `movie_stats`, `recommendations`.
+    - **Indexes:** Built on `movieId`, `title`, `genres`, `userId`, and `rating` for fast lookup and aggregation.
+    - **Document Storage:** Flexible JSON/BSON format allows storing array fields like `genres` directly inside documents.
+    - **Aggregation Framework:** Pipeline stages (`$group`, `$sort`, `$unwind`, `$lookup`) run directly on database servers.
     """)
-
-
-# =========================================================
-# PAGE 6: ABOUT PROJECT
-# =========================================================
-elif navigation == "6. About Project":
-    st.subheader("📚 About Project — Big Data Analytics Lab Mini Project")
-
-    st.markdown("""
-    ### 🎯 Problem Statement
-    Modern movie platforms contain large collections of movies and user ratings. Finding relevant movies from these collections can be difficult when users are presented with a large number of choices. This project develops a MongoDB-based Big Data analytics and recommendation system that stores movie and rating information, performs database-level aggregation and analytics, and generates movie recommendations based on content similarity and rating statistics.
-
-    ### 📌 Project Objectives
-    1. Store movie and rating data using **MongoDB Atlas Cloud**.
-    2. Perform NoSQL data management and validation operations.
-    3. Execute multi-stage **MongoDB Aggregation Pipelines** for movie analytics.
-    4. Implement a **Content-Based & Hybrid Movie Recommendation Engine**.
-    5. Provide an interactive Streamlit UI for recommendation and analytics.
-
-    ### 🛠️ Technology Stack
-    - **Database:** MongoDB Atlas (Cloud NoSQL)
-    - **Language:** Python 3.10+
-    - **UI Framework:** Streamlit
-    - **Analytics & Math:** NumPy, Pandas, PyMongo
-    - **Visualizations:** Plotly Express
-    - **Dataset:** GroupLens MovieLens (ml-latest-small: 100,000+ ratings, 9,700+ movies)
-
-    ### 👥 Project Team
-    - **Student Name:** Computer Engineering Student (BE Comp)
-    - **Subject:** Big Data Analytics (BDA) Lab Mini Project
-    """)
-
-# Footer
-st.markdown("---")
-st.caption("MovieRec BDA — Big Data Movie Recommendation System | BE Computer Engineering BDA Lab Mini-Project")
