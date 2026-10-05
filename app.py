@@ -116,8 +116,7 @@ navigation = st.sidebar.radio(
         "1. Home",
         "2. Movie Explorer",
         "3. Recommendations",
-        "4. Analytics Dashboard",
-        "5. MongoDB Operations"
+        "4. Analytics Dashboard"
     ]
 )
 
@@ -177,7 +176,6 @@ if navigation == "1. Home":
     - **View ratings and statistics:** Analyze overall rating distributions and top-rated movies.
     - **Find movies similar to a selected movie:** Generate recommendations based on content similarity and genre matching.
     - **Analyze the movie-rating dataset:** Perform database aggregations directly on MongoDB collections.
-    - **View MongoDB operations used by the project:** Inspect collections, indexes, and aggregation queries.
     """)
 
     st.subheader("System Overview")
@@ -405,115 +403,3 @@ elif navigation == "4. Analytics Dashboard":
             )
             st.plotly_chart(fig_g, use_container_width=True)
 
-
-# =========================================================
-# PAGE 5: MONGODB OPERATIONS
-# =========================================================
-elif navigation == "5. MongoDB Operations":
-    st.header("MongoDB Operations")
-    st.write("Demonstration of NoSQL queries, collections, indexes, and aggregation pipelines.")
-
-    is_valid_db, msg = validate_config()
-
-    if not is_valid_db:
-        st.warning("MongoDB URI is not set in `.env`. Demonstration query examples:")
-
-    st.subheader("Query Examples")
-
-    query_option = st.selectbox(
-        "Select a MongoDB query operation to inspect:",
-        [
-            "1. db.movies.find() - Sample Movies Documents",
-            "2. db.movies.find({genres: 'Comedy'}) - Filter by Genre",
-            "3. db.ratings.find({rating: {$gte: 4.5}}) - High Ratings Filter",
-            "4. db.ratings.aggregate([$group, $sort, $limit]) - Most Rated Movies Pipeline",
-            "5. db.movies.aggregate([$unwind, $group]) - Genre Distribution Pipeline"
-        ]
-    )
-
-    if query_option.startswith("1."):
-        st.code("""
-// Find 5 movie documents
-db.movies.find({}, {projection: {_id: 0}}).limit(5);
-        """, language="javascript")
-        if is_valid_db:
-            try:
-                res = list(get_collection(COLL_MOVIES).find({}, {"_id": 0}).limit(5))
-                st.json(res)
-            except Exception as e:
-                st.error(f"Query error: {e}")
-
-    elif query_option.startswith("2."):
-        st.code("""
-// Find movies in Comedy genre
-db.movies.find({ genres: "Comedy" }, {projection: {_id: 0}}).limit(5);
-        """, language="javascript")
-        if is_valid_db:
-            try:
-                res = list(get_collection(COLL_MOVIES).find({"genres": "Comedy"}, {"_id": 0}).limit(5))
-                st.json(res)
-            except Exception as e:
-                st.error(f"Query error: {e}")
-
-    elif query_option.startswith("3."):
-        st.code("""
-// Find ratings greater than or equal to 4.5
-db.ratings.find({ rating: { $gte: 4.5 } }, {projection: {_id: 0}}).limit(5);
-        """, language="javascript")
-        if is_valid_db:
-            try:
-                res = list(get_collection(COLL_RATINGS).find({"rating": {"$gte": 4.5}}, {"_id": 0}).limit(5))
-                st.json(res)
-            except Exception as e:
-                st.error(f"Query error: {e}")
-
-    elif query_option.startswith("4."):
-        st.code("""
-// Aggregation: Group ratings by movieId, compute average and count, sort descending
-db.ratings.aggregate([
-    { $group: { _id: "$movieId", ratingCount: { $sum: 1 }, avgRating: { $avg: "$rating" } } },
-    { $sort: { ratingCount: -1 } },
-    { $limit: 5 }
-]);
-        """, language="javascript")
-        if is_valid_db:
-            try:
-                pipe = [
-                    {"$group": {"_id": "$movieId", "ratingCount": {"$sum": 1}, "avgRating": {"$avg": "$rating"}}},
-                    {"$sort": {"ratingCount": -1}},
-                    {"$limit": 5}
-                ]
-                res = list(get_collection(COLL_RATINGS).aggregate(pipe))
-                st.json(res)
-            except Exception as e:
-                st.error(f"Query error: {e}")
-
-    elif query_option.startswith("5."):
-        st.code("""
-// Aggregation: Unwind genres array, count movies per genre
-db.movies.aggregate([
-    { $unwind: "$genres" },
-    { $group: { _id: "$genres", movieCount: { $sum: 1 } } },
-    { $sort: { movieCount: -1 } }
-]);
-        """, language="javascript")
-        if is_valid_db:
-            try:
-                pipe = [
-                    {"$unwind": "$genres"},
-                    {"$group": {"_id": "$genres", "movieCount": {"$sum": 1}}},
-                    {"$sort": {"movieCount": -1}}
-                ]
-                res = list(get_collection(COLL_MOVIES).aggregate(pipe))
-                st.json(res)
-            except Exception as e:
-                st.error(f"Query error: {e}")
-
-    st.markdown("---")
-    st.subheader("MongoDB Database Statistics & Features")
-    st.markdown("""
-    - **Collections:** `movies`, `ratings`, `movie_stats`, `recommendations`.
-    - **Indexes:** Built on `movieId`, `title`, `genres`, `userId`, and `rating` for fast lookup and aggregation.
-    - **Document Storage:** Flexible JSON/BSON format allows storing array fields like `genres` directly inside documents.
-    - **Aggregation Framework:** Pipeline stages (`$group`, `$sort`, `$unwind`, `$lookup`) run directly on database servers.
-    """)
